@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Кино про нас</title>
+<meta name="theme-color" content="#0b0a14">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,500&family=Golos+Text:wght@400;500&display=swap">
+<style>
+:root{
+  --fg:#f4ecdf; --muted:#a39bb0; --gold:#f0c982; --rose:#f2a7b8; --ok:#9fdcaa; --bad:#f09a8d;
+  --serif:"Playfair Display",Georgia,"Times New Roman",serif;
+  --sans:"Golos Text",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --vh:100vh; color-scheme:dark;
+}
+@supports (height:100svh){:root{--vh:100svh}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{scroll-behavior:auto}
+body{margin:0;background:#0b0a14;color:var(--fg);font-family:var(--sans);overflow-x:hidden;
+  padding-bottom:env(safe-area-inset-bottom,0)}
+[hidden]{display:none!important}
+
+/* фон: ночь -> рассвет по мере скролла */
+#bg1,#bg2{position:fixed;inset:0;pointer-events:none;z-index:0}
+#bg1{background:radial-gradient(120% 70% at 50% 0%,#1c1840,#0b0a14 70%)}
+#bg2{background:radial-gradient(120% 80% at 50% 100%,#7a2c4a,#3a1630 45%,transparent 75%);opacity:0}
+#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:5}
+#bar{position:fixed;top:0;left:0;height:3px;width:0;z-index:9;background:linear-gradient(90deg,var(--gold),var(--rose));
+  box-shadow:0 0 12px var(--rose);padding-top:env(safe-area-inset-top,0)}
+#story{position:relative;z-index:2}
+
+.scene{min-height:var(--vh);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+  padding:calc(11vh + env(safe-area-inset-top,0px)) max(26px,env(safe-area-inset-right,0px)) 11vh max(26px,env(safe-area-inset-left,0px))}
+.inner{width:100%;max-width:30rem}
+
+.kicker{margin:0 0 1rem;font-size:.72rem;letter-spacing:.26em;text-transform:uppercase;color:var(--muted)}
+h1,h2,h3{font-family:var(--serif);margin:0;text-wrap:balance}
+h1{font-style:italic;font-weight:500;color:var(--gold);font-size:clamp(3rem,15.5vw,5.6rem);line-height:1.02}
+h2{font-weight:600;font-size:clamp(1.6rem,6.6vw,2.3rem);line-height:1.25}
+.sub{margin:1rem auto 0;color:var(--muted);line-height:1.6;max-width:24rem}
+
+/* слова появляются по очереди */
+.w{display:inline-block;opacity:0;transform:translateY(.7em);filter:blur(5px);
+  transition:opacity .8s ease,transform .8s cubic-bezier(.2,.8,.2,1),filter .8s ease;
+  transition-delay:calc(var(--d,0s) + var(--i) * 70ms)}
+.in .w{opacity:1;transform:none;filter:none}
+.big p{margin:0 0 1.3rem;font-family:var(--serif);font-style:italic;font-size:clamp(1.55rem,6.6vw,2.2rem);line-height:1.35}
+.plain p{margin:0 0 1rem;line-height:1.7;font-size:1.05rem}
+.accent{color:var(--rose)}
+
+/* hero */
+.hw{display:inline-block;white-space:nowrap}
+.ch{display:inline-block;opacity:0;transform:translateY(.8em) rotate(6deg) scale(.7);filter:blur(8px);
+  transition:all .9s cubic-bezier(.2,.9,.2,1.2);transition-delay:calc(var(--i)*80ms + .3s)}
+.in .ch{opacity:1;transform:none;filter:none}
+.hero h1{text-shadow:0 0 40px rgba(240,201,130,.35)}
+.arrow{margin-top:2.4rem;font-size:.8rem;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);animation:bob 1.8s ease-in-out infinite;opacity:0;transition:opacity 1s 2s}
+.in .arrow{opacity:1}
+@keyframes bob{50%{transform:translateY(10px)}}
+
+/* кнопки */
+.btn{font:500 .8rem/1 var(--sans);letter-spacing:.18em;text-transform:uppercase;color:var(--fg);background:rgba(255,255,255,.03);
+  border:1px solid rgba(240,201,130,.7);border-radius:999px;min-height:50px;padding:0 1.8rem;cursor:pointer;margin-top:1.6rem;
+  transition:background .2s,transform .15s}
+.btn:hover{background:rgba(240,201,130,.15)}
+.btn:active{transform:scale(.96)}
+.btn:focus-visible,.cell:focus-visible,input:focus-visible,.sneak:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.btn.soft{border-color:rgba(255,255,255,.25)}
+.msg{min-height:3.4rem;margin-top:1.2rem;font-family:var(--serif);font-style:italic;font-size:1.2rem;line-height:1.45;color:var(--gold)}
+.msg.bad{color:var(--bad)}
+.msg.ok{color:var(--ok)}
+
+/* убегающая кнопка */
+.area{position:relative;width:100%;height:13rem;margin-top:1.2rem}
+.runner{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);margin:0;transition:left .22s cubic-bezier(.3,1.5,.5,1),top .22s cubic-bezier(.3,1.5,.5,1);
+  background:#5a1a24;border-color:#f09a8d;color:#ffd9d3;white-space:nowrap}
+.runner.calm{background:rgba(240,201,130,.15);border-color:var(--gold);color:var(--fg)}
+.sneak{background:none;border:0;color:var(--muted);font:400 .78rem var(--sans);text-decoration:underline;text-underline-offset:3px;cursor:pointer;margin-top:1.4rem;padding:.6rem}
+
+/* капча */
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;max-width:19rem;margin:1.4rem auto 0}
+.cell{aspect-ratio:1;font-size:2.2rem;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.05);
+  border:2px solid transparent;border-radius:10px;cursor:pointer;transition:transform .15s,border-color .2s,background .2s;position:relative}
+.cell.on{border-color:var(--gold);background:rgba(240,201,130,.18);transform:scale(.92)}
+.cell.on::after{content:"✓";position:absolute;top:2px;right:6px;font-size:.9rem;color:var(--gold)}
+
+/* загрузка */
+.pbar{height:14px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden;max-width:22rem;margin:1.6rem auto 0}
+.pbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--rose),var(--gold));box-shadow:0 0 14px var(--rose);transition:width .35s ease}
+.pct{margin-top:.8rem;font-variant-numeric:tabular-nums;color:var(--muted);letter-spacing:.1em}
+.shake{animation:shake .45s}
+@keyframes shake{20%{transform:translateX(-9px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(4px)}}
+
+/* 404 */
+.e404{font-family:var(--serif);font-size:clamp(5rem,28vw,9rem);line-height:1;font-weight:600;color:var(--bad);
+  animation:glitch 2.4s infinite}
+@keyframes glitch{0%,90%,100%{text-shadow:none;transform:none}92%{text-shadow:4px 0 #6cf,-4px 0 #f6c;transform:translateX(3px)}94%{text-shadow:-5px 0 #6cf,5px 0 #f6c;transform:translateX(-4px)}96%{text-shadow:3px 0 #6cf,-3px 0 #f6c;transform:skewX(8deg)}}
+
+/* скролл-сцена с сердцем */
+.scrub{height:340vh;height:340svh;position:relative}
+.stick{position:sticky;top:0;height:100vh;height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 26px}
+.heart{width:min(62vw,17rem);overflow:visible;filter:drop-shadow(0 0 18px rgba(242,167,184,.55))}
+.heart path{fill:rgba(242,167,184,0);stroke:var(--rose);stroke-width:1.6;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1}
+.words{position:relative;height:6.5rem;width:100%;max-width:28rem;margin-top:1.6rem}
+.words p{position:absolute;inset:0;margin:0;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-style:italic;
+  font-size:clamp(1.5rem,6.4vw,2.1rem);line-height:1.3;opacity:0;will-change:opacity,transform}
+
+/* вопрос */
+.qwrap{position:relative}
+.ring{position:absolute;left:50%;top:42%;width:10px;height:10px;border-radius:50%;border:2px solid var(--rose);opacity:0;pointer-events:none;transform:translate(-50%,-50%)}
+.bloom .ring{animation:ring 2.2s ease-out forwards}
+.bloom .ring:nth-child(2){animation-delay:.25s}.bloom .ring:nth-child(3){animation-delay:.5s}
+@keyframes ring{0%{opacity:.9;width:10px;height:10px}100%{opacity:0;width:150vmax;height:150vmax}}
+.ans{display:flex;gap:.6rem;margin-top:1.6rem}
+.ans input{flex:1;min-width:0;font:400 1.05rem var(--sans);color:var(--fg);background:rgba(255,255,255,.06);border:1px solid rgba(240,201,130,.4);
+  border-radius:14px;padding:.95rem 1rem;text-align:center}
+.ans input::placeholder{color:#7c7590}
+.ans .btn{margin:0;padding:0 1.2rem}
+.hint{margin-top:.8rem;font-size:.9rem;color:var(--muted);font-style:italic;min-height:1.4rem;transition:opacity .6s;opacity:0}
+.hint.show{opacity:1}
+.okline{font-family:var(--serif);font-style:italic;font-size:clamp(1.35rem,5.6vw,1.9rem);line-height:1.4;color:var(--ok);text-shadow:0 0 22px rgba(159,220,170,.35);min-height:4rem;margin-top:1.4rem}
+.next{opacity:0;transform:translateY(8px);pointer-events:none;transition:all .6s}
+.next.show{opacity:1;transform:none;pointer-events:auto}
+.done .ans input{opacity:.55}
+
+/* финал */
+.score{font-family:var(--serif);font-size:clamp(3.4rem,18vw,5.4rem);color:var(--gold);margin:.6rem 0 0;text-shadow:0 0 30px rgba(240,201,130,.4)}
+.credits{margin-top:2.4rem;color:var(--muted);line-height:2;font-size:.95rem}
+.credits b{display:block;color:var(--fg);font-weight:500;letter-spacing:.06em}
+.sign{font-family:var(--serif);font-style:italic;font-size:1.9rem;color:var(--rose);margin-top:2rem}
+
+@media (prefers-reduced-motion:reduce){.w,.ch,.btn,.next{transition-duration:.01s;transition-delay:0s}.arrow,.e404{animation:none}}
+</style>
+</head>
+<body>
+<div id="bg1"></div><div id="bg2"></div>
+<canvas id="fx" aria-hidden="true"></canvas>
+<div id="bar"></div>
+<main id="story"></main>
+
+<script>
+/* ============================================================
+   ВСЁ РЕДАКТИРУЕТСЯ ЗДЕСЬ. Остальное трогать не нужно.
+   Вопросы (type:"question"):
+     q        вопрос
+     answers  что считается верным (любые варианты, регистр и ё не важны,
+              опечатка в 1-2 буквы прощается, слово внутри фразы тоже ок)
+     ok       текст после верного ответа (печатается красиво)
+     joke     шутка после 1-й ошибки (вторая попытка)
+     fail     фраза после 2-й ошибки (потом идём дальше)
+     hint     подсказка, появится если она молчит 25 секунд
+     fx       анимация награды: hearts | petals | stars | lanterns | fireworks
+   ============================================================ */
+const CONFIG = {
+  name: "Кэтрин",
+  from: "Твой Лансик",
+  scenes: [
+    { type: "hero", kicker: "Для Кэтрин", title: "Кино про нас", sub: "Фильм в одном экземпляре. Смотреть только тебе." },
+
+    { type: "text", big: true, lines: [
+      "Привет, Кэтрин.",
+      { t: "Это не сайт. Это кино.", d: 1.1 },
+      { t: "В главной роли ты. Режиссёр я, потому что на другого не хватило бюджета.", d: 2.4 }
+    ]},
+
+    { type: "text", big: true, lines: [
+      "Дальше ничего нет.",
+      { t: "Шучу. Скролль.", d: 2.6, cls: "accent" }
+    ]},
+
+    { type: "runaway", title: "Не нажимай эту кнопку", button: "НЕ НАЖИМАЙ",
+      dodges: ["", "Эй!", "Я же сказал.", "Ты вообще слушаешь?", "Ладно. Сдаюсь."],
+      caught: "ладно, жми", sneak: "а можно просто сюда?",
+      sneakReply: "О, чёрный ход. Умница. Идём." },
+
+    { type: "text", plain: true, lines: [
+      "Ты нажала. Конечно нажала.",
+      { t: "Потому что ты у меня дурёха. И это самое нежное слово в моём исполнении.", d: 1.2 }
+    ]},
+
+    { type: "scrub", words: [
+      "Два месяца назад.",
+      "Обычная соцсеть.",
+      "Обычный день.",
+      "И вдруг ты.",
+      "С тобой тепло.",
+      "С тобой смешно.",
+      "С тобой я лучше."
+    ]},
+
+    { type: "captcha", title: "Подожди. Ты не робот?", sub: "Выбери все квадраты, где есть красавчик Лансик.",
+      cells: ["🌳","🚗","🧸","🚦","🌳","🧸","🚗","🌳","🚦"],
+      wrong: "Неверно. Лансик на всех фото. Он везде. Выбирай заново.",
+      right: "Принято. Ты человек. Очень красивый человек." },
+
+    { type: "loading", title: "Загружаю чувства…",
+      stall: "Застряло на 99%. Сервер застенчивый.",
+      taps: ["Не двигается. Тапни ещё.", "Кажется, нужно больше нежности.", "Почти. Тапай, не жалей.", "Ещё чуть-чуть."],
+      button: "Подтолкнуть", done: "Загружено. Теперь точно." },
+
+    { type: "text", big: true, lines: [
+      "А теперь кино.",
+      { t: "Пять кадров. Две попытки на каждый.", d: 1.2 },
+      { t: "Отвечай сама. Без вариантов. Почти без шансов.", d: 2.5, cls: "accent" }
+    ]},
+
+    { type: "question", q: "Где мы познакомились?", ph: "Напиши ответ…",
+      answers: ["соцсет", "соцсеть", "в соцсети"],
+      ok: "Да. Обычная соцсеть, а вышло необычное кино.",
+      joke: "Хм. Я бы такое запомнил. Попробуй ещё раз.",
+      fail: "Ничего. Первый кадр всегда самый сложный. Идём дальше.",
+      hint: "Подсказка: место, где всё и началось. Там много людей, а я нашёл тебя.",
+      fx: "petals" },
+
+    { type: "text", plain: true, lines: [
+      "Ладно, это была разминка.",
+      { t: "Дальше сложнее. (Нет.)", d: 1.1 }
+    ]},
+
+    { type: "choice", title: "Мы используем печеньки 🍪", sub: "Чтобы сайт был вкуснее, а ты чаще улыбалась.",
+      buttons: ["Принять", "Принять (с любовью)"],
+      replies: ["Принято. Печеньки уже в пути.", "Принято. Двойная порция любви уже в пути."] },
+
+    { type: "question", q: "Как я тебя называю?", ph: "Напиши ответ…",
+      answers: ["дурёха", "дуреха", "дурочка", "глупая"],
+      ok: "Именно. Моя дурёха. Навсегда.",
+      joke: "Ты сейчас сама себя повысила до принцессы? Ещё раз.",
+      fail: "Дурёха. Вот ответ. И мне сейчас обидно за нас обоих.",
+      hint: "Подсказка: слово, которое звучит обидно, а значит наоборот.",
+      fx: "hearts" },
+
+    { type: "question", q: "Сколько месяцев мы знакомы?", ph: "Цифрой или словом…",
+      answers: ["2", "два", "две"],
+      ok: "Два месяца. А ощущение, что целую жизнь.",
+      joke: "Мимо. Мы не такие древние. Давай ещё раз.",
+      fail: "Два месяца. Но я не считаю, честно-честно.",
+      hint: "Подсказка: примерно столько, сколько нужно, чтобы я пропал.",
+      fx: "stars" },
+
+    { type: "tapjoke", code: "404", title: "Скромность Лансика не найдена", button: "Искать ещё",
+      replies: ["Ищу… ищу… не нашёл.", "Заглянул под диван. Пусто.", "Нашёл замену: уверенность. Идём дальше."] },
+
+    { type: "question", q: "Как называется это кино?", ph: "Название фильма…",
+      answers: ["кино про нас", "про нас"],
+      ok: "Конечно. Кино про нас. И оно только начинается.",
+      joke: "Название было на самой первой странице. Ну же.",
+      fail: "«Кино про нас». Запомни, будет викторина. Шучу. Нет, не шучу.",
+      hint: "Подсказка: посмотри в самое начало. Там огромные золотые буквы.",
+      fx: "lanterns" },
+
+    { type: "question", q: "Кто для меня самое главное в этом кино?", ph: "Одно слово…",
+      answers: ["ты", "кэтрин", "катя", "катерина"],
+      ok: "Ты. Всегда ты.",
+      joke: "Ну ты чего. Подумай, кто сейчас читает этот вопрос.",
+      fail: "Ты. Это была ты. С самого начала.",
+      hint: "Подсказка: она сейчас держит телефон и читает это.",
+      fx: "fireworks" },
+
+    { type: "final",
+      tiers: [
+        { min: 5, text: "Пять из пяти. Ты знаешь про нас всё. Ну и конечно, ты знаешь, что ты лучшая." },
+        { min: 3, text: "Очень достойно. Остальное я прощаю. Потому что это ты." },
+        { min: 0, text: "Счёт не важен. Важно, что ты дошла до конца. Пересдача по первому требованию." }
+      ],
+      title: "Ты моя любимая",
+      lines: [
+        "Кэтрин, прошло два месяца, а я не представляю, как это было без тебя.",
+        "Спасибо, что ты есть. Правда."
+      ],
+      credits: [
+        ["В главной роли", "Кэтрин"],
+        ["Режиссёр", "Лансик"],
+        ["Оператор", "Лансик (штатив: стопка книг)"],
+        ["Каскадёр", "Тоже Лансик"],
+        ["Особая благодарность", "Обычной соцсети"]
+      ] }
+  ]
+};
+
+/* ====================== утилиты ====================== */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const rnd = (a, b) => a + Math.random() * (b - a);
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function words(t) {
+  let i = 0;
+  return esc(t).split(" ").map(w => `<span class="w" style="--i:${i++}">${w}</span>`).join(" ");
+}
+function typeInto(el, text, speed = 36) {
+  return new Promise(res => {
+    el.textContent = ""; let i = 0;
+    const t = setInterval(() => { el.textContent = text.slice(0, ++i); if (i >= text.length) { clearInterval(t); res(); } }, speed);
+  });
+}
+function say(el, text, cls) {
+  el.className = "msg" + (cls ? " " + cls : "");
+  return typeInto(el, text, 24);
+}
+
+/* сравнение ответов */
+const norm = s => s.toLowerCase().replace(/ё/g, "е").replace(/[^a-zа-я0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+function lev(a, b) {
+  const m = a.length, n = b.length; if (!m) return n; if (!n) return m;
+  let prev = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++) {
+    const cur = [i];
+    for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[n];
+}
+function matches(input, answers) {
+  const n = norm(input); if (!n) return false;
+  const toks = n.split(" ");
+  return answers.some(raw => {
+    const a = norm(raw);
+    if (a.length <= 3) return toks.includes(a);
+    if (n.includes(a)) return true;
+    const tol = a.length > 6 ? 2 : 1;
+    return lev(n, a) <= tol || toks.some(t => lev(t, a) <= tol);
+  });
+}
+
+/* ====================== частицы ====================== */
+const cv = $("#fx"), ctx = cv.getContext("2d");
+let W = 0, H = 0, dpr = 1;
+const P = [];
+const PINKS = ["#f2a7b8", "#ff7a9c", "#ffc2d1", "#f58fb1", "#ffe0e8"];
+const PETALS = ["#ffc2d1", "#ffb3c6", "#ff9bb5", "#ffd6e0", "#f7a1c4"];
+const GOLDS = ["#f0c982", "#ffe3a8", "#fff1c9", "#ffd166"];
+function resize() {
+  dpr = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight;
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+addEventListener("resize", resize); resize();
+
+const ambient = Array.from({ length: 70 }, () => ({ x: Math.random(), y: Math.random(), r: rnd(.4, 1.6), a: rnd(.15, .6), z: rnd(.05, .4), ph: rnd(0, 6.28) }));
+
+function spawn(o) {
+  if (P.length > 700) return;
+  P.push(Object.assign({ x: 0, y: 0, vx: 0, vy: 0, g: 0, fr: 1, s: 8, rot: 0, vr: 0, life: 0, max: 200, sway: 0, col: "#fff", add: false }, o));
+}
+function wave(n, gap, fn) { for (let i = 0; i < n; i++) setTimeout(fn, i * gap); }
+
+function heartPath(c, x, y, s) {
+  c.beginPath(); c.moveTo(x, y + s * .35);
+  c.bezierCurveTo(x - s, y - s * .3, x - s * .55, y - s * 1.05, x, y - s * .45);
+  c.bezierCurveTo(x + s * .55, y - s * 1.05, x + s, y - s * .3, x, y + s * .35); c.closePath();
+}
+function sparkPath(c, x, y, s) {
+  c.beginPath(); c.moveTo(x, y - s);
+  c.quadraticCurveTo(x, y, x + s, y); c.quadraticCurveTo(x, y, x, y + s);
+  c.quadraticCurveTo(x, y, x - s, y); c.quadraticCurveTo(x, y, x, y - s); c.closePath();
+}
+function radial(x, y, n, speed, cols, kind = "dot", extra = {}) {
+  for (let i = 0; i < n; i++) {
+    const a = rnd(0, 6.283), v = rnd(.3, 1) * speed;
+    spawn(Object.assign({ kind, x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: .04, fr: .965, s: rnd(1.4, 3), col: pick(cols), max: rnd(60, 110), add: true }, extra));
+  }
+}
+const FX = {
+  hearts() { wave(80, 22, () => spawn({ kind: "heart", x: rnd(0, W), y: H + 20, vx: rnd(-.4, .4), vy: -rnd(2, 5.5), s: rnd(8, 24), col: pick(PINKS), sway: rnd(.3, 1), max: rnd(150, 270) })); },
+  petals() { wave(110, 28, () => spawn({ kind: "petal", x: rnd(0, W), y: -20, vx: rnd(-.5, .5), vy: rnd(1, 2.6), s: rnd(6, 12), vr: rnd(-.06, .06), col: pick(PETALS), sway: rnd(.6, 1.6), max: 480 })); },
+  stars() {
+    [[.25, .3], [.75, .25], [.5, .5]].forEach(([fx, fy], k) => setTimeout(() => radial(W * fx, H * fy, 45, 7, GOLDS, "spark", { s: rnd(4, 9), g: .02, fr: .95, max: 130 }), k * 380));
+    wave(50, 50, () => spawn({ kind: "spark", x: rnd(0, W), y: rnd(0, H * .7), s: rnd(3, 8), max: 120, col: pick(GOLDS), add: true }));
+  },
+  lanterns() { wave(34, 90, () => spawn({ kind: "lantern", x: rnd(W * .08, W * .92), y: H + 30, vx: rnd(-.25, .25), vy: -rnd(.6, 1.5), s: rnd(14, 26), sway: rnd(.2, .6), col: pick(["#ffb347", "#ff8c42", "#ffd166"]), max: 720, add: true })); },
+  fireworks() {
+    for (let k = 0; k < 9; k++) setTimeout(() => {
+      const x = rnd(W * .12, W * .88), y = rnd(H * .1, H * .5), cols = pick([GOLDS, PINKS, ["#9fdcaa", "#d4ffd9"], ["#9ec9ff", "#e0efff"]]);
+      radial(x, y, 90, 6.5, cols);
+      radial(x, y, 24, 3, ["#ffffff"], "dot", { max: 80 });
+    }, k * 420);
+  }
+};
+function tapHearts(x, y) {
+  for (let i = 0; i < 5; i++) spawn({ kind: "heart", x, y, vx: rnd(-1.4, 1.4), vy: -rnd(1.5, 3.2), s: rnd(6, 11), col: pick(PINKS), sway: .3, max: rnd(60, 100) });
+}
+function flash() {
+  const f = document.createElement("div");
+  f.style.cssText = "position:fixed;inset:0;background:radial-gradient(circle,rgba(255,240,210,.55),transparent 70%);z-index:6;pointer-events:none;opacity:1;transition:opacity 1.2s";
+  document.body.appendChild(f); requestAnimationFrame(() => requestAnimationFrame(() => f.style.opacity = 0)); setTimeout(() => f.remove(), 1400);
+}
+
+let tick = 0;
+function loop() {
+  tick++;
+  ctx.clearRect(0, 0, W, H);
+  const sy = scrollY;
+  ctx.globalCompositeOperation = "lighter";
+  for (const a of ambient) {
+    const y = ((a.y * H - sy * a.z) % H + H) % H;
+    ctx.globalAlpha = a.a * (.6 + .4 * Math.sin(tick * .02 + a.ph));
+    ctx.fillStyle = "#f6e6bd"; ctx.beginPath(); ctx.arc(a.x * W, y, a.r, 0, 6.283); ctx.fill();
+  }
+  for (let i = P.length - 1; i >= 0; i--) {
+    const p = P[i]; p.life++;
+    if (p.life > p.max) { P.splice(i, 1); continue; }
+    p.vx *= p.fr; p.vy = p.vy * p.fr + p.g; p.x += p.vx + Math.sin(p.life * .05 + p.rot) * p.sway; p.y += p.vy; p.rot += p.vr;
+    const al = clamp(Math.min(p.life / 10, (p.max - p.life) / 40));
+    ctx.globalAlpha = al; ctx.globalCompositeOperation = p.add ? "lighter" : "source-over"; ctx.fillStyle = p.col;
+    switch (p.kind) {
+      case "heart": heartPath(ctx, p.x, p.y, p.s); ctx.fill(); break;
+      case "petal": ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot + p.life * .02); ctx.beginPath(); ctx.ellipse(0, 0, p.s, p.s * .5, 0, 0, 6.283); ctx.fill(); ctx.restore(); break;
+      case "spark": sparkPath(ctx, p.x, p.y, p.s * (.6 + .4 * Math.sin(p.life * .3))); ctx.fill(); break;
+      case "lantern": {
+        const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.s * 2.6);
+        g.addColorStop(0, p.col); g.addColorStop(1, "rgba(255,150,60,0)");
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, p.s * 2.6, 0, 6.283); ctx.fill();
+        ctx.globalAlpha = al * .9; ctx.fillStyle = "#fff3d6"; ctx.fillRect(p.x - p.s * .35, p.y - p.s * .45, p.s * .7, p.s * .9); break;
+      }
+      default: ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, 6.283); ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+addEventListener("pointerdown", e => {
+  if (e.target.closest("button,input,a")) return;
+  tapHearts(e.clientX, e.clientY);
+}, { passive: true });
+
+/* ====================== сцены ====================== */
+const story = $("#story");
+const S = CONFIG.scenes;
+const els = [];
+const GATES = new Set(["runaway", "captcha", "loading", "choice", "question", "tapjoke"]);
+let nextIdx = 0, score = 0;
+const total = S.filter(s => s.type === "question").length;
+let qNum = 0;
+
+const io = new IntersectionObserver(entries => {
+  for (const e of entries) if (e.isIntersecting && !e.target.classList.contains("in")) {
+    e.target.classList.add("in");
+    const i = els.indexOf(e.target);
+    if (S[i] && S[i].onIn) S[i].onIn();
+  }
+}, { threshold: .35 });
+
+function scene(inner, cls = "") {
+  const el = document.createElement("section");
+  el.className = "scene " + cls; el.hidden = true;
+  el.innerHTML = `<div class="inner">${inner}</div>`;
+  return el;
+}
+
+function unlock() {
+  const first = nextIdx;
+  showUntilGate();
+  const el = els[first];
+  if (el && !el.hidden) setTimeout(() => el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" }), 120);
+}
+function showUntilGate() {
+  while (nextIdx < S.length) {
+    const i = nextIdx++;
+    els[i].hidden = false; io.observe(els[i]);
+    if (GATES.has(S[i].type)) break;
+  }
+}
+
+const builders = {
+  hero(s, i) {
+    let n = 0;
+    const title = s.title.split(" ").map(w => `<span class="hw">${[...w].map(c => `<span class="ch" style="--i:${n++}">${esc(c)}</span>`).join("")}</span>`).join(" ");
+    const el = scene(`<p class="kicker">${esc(s.kicker)}</p><h1>${title}</h1><p class="sub">${esc(s.sub)}</p><div class="arrow">листай вниз ↓</div>`, "hero");
+    return el;
+  },
+
+  text(s) {
+    const cls = s.big ? "big" : "plain";
+    const html = s.lines.map(l => {
+      const o = typeof l === "string" ? { t: l } : l;
+      return `<p class="${o.cls || ""}" style="--d:${o.d || 0}s">${words(o.t)}</p>`;
+    }).join("");
+    return scene(`<div class="${cls}">${html}</div>`);
+  },
+
+  scrub(s) {
+    const el = document.createElement("section");
+    el.className = "scrub"; el.hidden = true;
+    el.innerHTML = `<div class="stick">
+      <svg class="heart" viewBox="0 0 100 90" aria-hidden="true"><path pathLength="1" d="M50 82 C10 52 4 28 22 16 C36 7 46 14 50 24 C54 14 64 7 78 16 C96 28 90 52 50 82 Z"/></svg>
+      <div class="words">${s.words.map(w => `<p>${esc(w)}</p>`).join("")}</div></div>`;
+    el._scrub = { path: $("path", el), ps: $$(".words p", el), n: s.words.length };
+    return el;
+  },
+
+  runaway(s, i) {
+    const el = scene(`<p class="kicker">Осторожно</p><h2>${esc(s.title)}</h2>
+      <div class="area"><button class="btn runner" type="button">${esc(s.button)}</button></div>
+      <div class="msg" aria-live="polite"></div>
+      <button class="sneak" type="button">${esc(s.sneak)}</button>`);
+    const btn = $(".runner", el), area = $(".area", el), msg = $(".msg", el), sneak = $(".sneak", el);
+    let d = 0, caught = false, finished = false;
+    const finish = async text => {
+      if (finished) return; finished = true;
+      sneak.hidden = true; btn.disabled = true; msg.className = "msg ok"; await typeInto(msg, text, 24); flash(); FX.hearts(); await sleep(1400); unlock();
+    };
+    const flee = () => {
+      if (caught) return;
+      d++;
+      const a = area.getBoundingClientRect(), b = btn.getBoundingClientRect();
+      const hw = b.width / 2, hh = b.height / 2;
+      btn.style.left = rnd(hw, a.width - hw) + "px"; btn.style.top = rnd(hh, a.height - hh) + "px";
+      msg.textContent = s.dodges[Math.min(d, s.dodges.length - 1)];
+      if (d >= s.dodges.length - 1) { caught = true; btn.textContent = s.caught; btn.classList.add("calm"); btn.style.left = "50%"; btn.style.top = "50%"; }
+    };
+    btn.addEventListener("pointerenter", e => { if (e.pointerType === "mouse") flee(); });
+    btn.addEventListener("pointerdown", e => { if (!caught) { e.preventDefault(); flee(); } });
+    btn.addEventListener("click", () => { if (caught) finish("Ну вот. Было не страшно."); });
+    sneak.addEventListener("click", () => finish(s.sneakReply));
+    return el;
+  },
+
+  captcha(s) {
+    const el = scene(`<p class="kicker">Проверка безопасности</p><h2>${esc(s.title)}</h2><p class="sub">${esc(s.sub)}</p>
+      <div class="grid">${s.cells.map(c => `<button class="cell" type="button">${c}</button>`).join("")}</div>
+      <div class="msg" aria-live="polite"></div>
+      <button class="btn" type="button">Подтвердить</button>`);
+    const cells = $$(".cell", el), msg = $(".msg", el), btn = $(".btn", el), grid = $(".grid", el);
+    let tries = 0, busy = false;
+    cells.forEach(c => c.addEventListener("click", () => c.classList.toggle("on")));
+    btn.addEventListener("click", async () => {
+      if (busy) return; tries++;
+      if (tries === 1) {
+        grid.classList.remove("shake"); void grid.offsetWidth; grid.classList.add("shake");
+        cells.forEach(c => c.classList.remove("on"));
+        say(msg, s.wrong, "bad");
+      } else {
+        busy = true; btn.disabled = true; await say(msg, s.right, "ok"); flash(); FX.stars(); await sleep(1500); unlock();
+      }
+    });
+    return el;
+  },
+
+  loading(s) {
+    const el = scene(`<p class="kicker">Пожалуйста, подождите</p><h2>${esc(s.title)}</h2>
+      <div class="pbar"><i></i></div><div class="pct">0%</div>
+      <div class="msg" aria-live="polite"></div>
+      <button class="btn next" type="button">${esc(s.button)}</button>`);
+    const bar = $(".pbar i", el), pct = $(".pct", el), msg = $(".msg", el), btn = $(".btn", el), pb = $(".pbar", el);
+    const set = v => { bar.style.width = v + "%"; pct.textContent = Math.round(v) + "%"; };
+    let taps = 0, v = 0;
+    s.onIn = async () => {
+      while (v < 99) { v = Math.min(99, v + rnd(3, 9)); set(v); await sleep(120); }
+      set(99); await say(msg, s.stall); btn.classList.add("show");
+    };
+    btn.addEventListener("click", async () => {
+      if (taps >= s.taps.length) return;
+      pb.classList.remove("shake"); void pb.offsetWidth; pb.classList.add("shake");
+      tapHearts(btn.getBoundingClientRect().left + 40, btn.getBoundingClientRect().top);
+      if (taps < s.taps.length) say(msg, s.taps[taps]);
+      taps++;
+      if (taps >= s.taps.length) {
+        btn.disabled = true; await sleep(1400); set(100); await say(msg, s.done, "ok"); flash(); FX.hearts(); await sleep(1700); unlock();
+      }
+    });
+    return el;
+  },
+
+  choice(s) {
+    const el = scene(`<p class="kicker">Юридическая часть</p><h2>${esc(s.title)}</h2><p class="sub">${esc(s.sub)}</p>
+      <div style="display:grid;gap:.6rem;margin-top:1.4rem">${s.buttons.map(b => `<button class="btn" style="margin:0" type="button">${esc(b)}</button>`).join("")}</div>
+      <div class="msg" aria-live="polite"></div>`);
+    const bs = $$(".btn", el), msg = $(".msg", el); let done = false;
+    bs.forEach((b, k) => b.addEventListener("click", async () => {
+      if (done) return; done = true; bs.forEach(x => x.disabled = true);
+      await say(msg, s.replies[k], "ok"); FX.petals(); await sleep(1500); unlock();
+    }));
+    return el;
+  },
+
+  tapjoke(s) {
+    const el = scene(`<div class="e404">${esc(s.code)}</div><h2>${esc(s.title)}</h2>
+      <div class="msg" aria-live="polite"></div><button class="btn" type="button">${esc(s.button)}</button>`);
+    const btn = $(".btn", el), msg = $(".msg", el); let k = 0;
+    btn.addEventListener("click", async () => {
+      if (k >= s.replies.length) return;
+      const isLast = k === s.replies.length - 1;
+      const text = s.replies[k++];
+      if (isLast) { btn.disabled = true; await say(msg, text, "ok"); flash(); FX.stars(); await sleep(1600); unlock(); } else say(msg, text);
+    });
+    return el;
+  },
+
+  question(s, i) {
+    const n = ++qNum;
+    const el = scene(`<div class="qwrap"><i class="ring"></i><i class="ring"></i><i class="ring"></i>
+      <p class="kicker">Кадр ${n} из ${total}</p><h2>${esc(s.q)}</h2>
+      <div class="ans"><input type="text" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" placeholder="${esc(s.ph || "Ответ…")}"><button class="btn" type="button">Ответить</button></div>
+      <div class="hint"></div>
+      <div class="msg" aria-live="polite"></div>
+      <button class="btn next" type="button">дальше ↓</button></div>`);
+    const input = $("input", el), go = $(".ans .btn", el), msg = $(".msg", el), hint = $(".hint", el), next = $(".next", el), wrap = $(".qwrap", el);
+    let tries = 0, done = false, hintT;
+    s.onIn = () => { hintT = setTimeout(() => { if (!done && tries === 0) { hint.textContent = s.hint || ""; hint.classList.add("show"); } }, 25000); };
+    const finishUI = () => { done = true; clearTimeout(hintT); hint.classList.remove("show"); input.disabled = true; go.disabled = true; wrap.classList.add("done"); setTimeout(() => next.classList.add("show"), 500); };
+    const submit = async () => {
+      if (done) return;
+      const v = input.value.trim(); if (!v) { input.classList.add("shake"); setTimeout(() => input.classList.remove("shake"), 450); return; }
+      if (matches(v, s.answers)) {
+        finishUI(); score++; input.blur();
+        wrap.classList.add("bloom"); flash(); FX[s.fx || "hearts"]();
+        msg.className = "okline"; typeInto(msg, s.ok, 42);
+      } else {
+        tries++; input.classList.remove("shake"); void input.offsetWidth; input.classList.add("shake");
+        if (tries === 1) { say(msg, s.joke, "bad"); input.value = ""; input.placeholder = "Ну давай ещё раз…"; input.focus(); }
+        else { finishUI(); input.blur(); say(msg, s.fail, "bad"); }
+      }
+    };
+    go.addEventListener("click", submit);
+    input.addEventListener("keydown", e => { if (e.key === "Enter") submit(); });
+    next.addEventListener("click", () => { next.disabled = true; unlock(); });
+    return el;
+  },
+
+  final(s) {
+    const tier = () => s.tiers.find(t => score >= t.min) || s.tiers[s.tiers.length - 1];
+    const el = scene(`<p class="kicker">Конец фильма</p><div class="score"></div><p class="sub tier"></p>
+      <div class="big" style="margin-top:2.2rem"><p class="accent fin-title"></p></div>
+      <div class="plain fin-lines"></div>
+      <div class="credits">${s.credits.map(([a, b]) => `${esc(a)}<b>${esc(b)}</b>`).join("")}</div>
+      <div class="sign">${esc(CONFIG.from)}</div>
+      <button class="btn" type="button">Пересмотреть</button>`);
+    $(".btn", el).addEventListener("click", () => { scrollTo({ top: 0 }); location.reload(); });
+    s.onIn = () => {
+      $(".score", el).textContent = score + " / " + total;
+      $(".tier", el).textContent = tier().text;
+      $(".fin-title", el).innerHTML = words(s.title);
+      $(".fin-lines", el).innerHTML = s.lines.map((l, k) => `<p style="--d:${1.5 + k * 1.6}s">${words(l)}</p>`).join("");
+      el.classList.remove("in"); requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("in")));
+      flash(); FX.fireworks(); FX.hearts();
+      let n = 0; const t = setInterval(() => { FX.fireworks(); if (n % 2) FX.petals(); if (++n > 4) clearInterval(t); }, 5200);
+    };
+    return el;
+  }
+};
+
+S.forEach((s, i) => {
+  const el = builders[s.type](s, i);
+  els.push(el); story.appendChild(el);
+});
+
+/* ====================== скролл-эффекты ====================== */
+const bar = $("#bar"), bg2 = $("#bg2");
+let ticking = false;
+function onScroll() {
+  if (ticking) return; ticking = true;
+  requestAnimationFrame(() => {
+    ticking = false;
+    const max = document.documentElement.scrollHeight - innerHeight;
+    const p = max > 0 ? clamp(scrollY / max) : 0;
+    bar.style.width = (p * 100) + "%";
+    bg2.style.opacity = (p * .85).toFixed(3);
+    els.forEach(el => {
+      const sc = el._scrub; if (!sc || el.hidden) return;
+      const r = el.getBoundingClientRect(), t = clamp(-r.top / (r.height - innerHeight));
+      sc.path.style.strokeDashoffset = 1 - clamp(t * 1.5);
+      sc.path.style.fill = `rgba(242,167,184,${clamp((t - .55) * 1.1) * .45})`;
+      const pos = t * (sc.n - 1);
+      sc.ps.forEach((pe, k) => {
+        const d = Math.abs(pos - k), o = clamp(1 - d * 2.1);
+        pe.style.opacity = o; pe.style.transform = `translateY(${(k - pos) * 26}px) scale(${.94 + o * .06})`;
+        pe.style.filter = `blur(${(1 - o) * 6}px)`;
+      });
+    });
+  });
+}
+addEventListener("scroll", onScroll, { passive: true }); addEventListener("resize", onScroll);
+
+showUntilGate(); onScroll();
+setTimeout(() => els[0] && els[0].classList.add("in"), 150);
+</script>
+</body>
+</html>
